@@ -1,5 +1,25 @@
 {
-  "dependencies": {
-    "airtable": "^0.12.2"
-  }
+	"name": "airtable-wp",
+	"version": "1.2.0",
+	"description": "Adds custom functionality to the Theme Maim wordpress theme.",
+	"author": "Emm Talarico",
+	"license": "GPL-2.0-or-later",
+	"main": "build/index.js",
+	"scripts": {
+		"build": "wp-scripts build src/index.js",
+		"format": "wp-scripts format",
+		"lint:css": "wp-scripts lint-style",
+		"lint:js": "wp-scripts lint-js",
+		"start": "wp-scripts start src/index.js",
+		"packages-update": "wp-scripts packages-update"
+	},
+	"dependencies": {
+    "airtable": "^0.12.2",
+		"@wordpress/block-editor": "^8.0.9",
+		"@wordpress/blocks": "^11.1.4",
+		"@wordpress/i18n": "^4.2.4"
+	},
+	"devDependencies": {
+		"@wordpress/scripts": "^19.2.2"
+	}
 }
