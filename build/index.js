@@ -12,6 +12,15 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! @wordpress/element */ "@wordpress/element");
 /* harmony import */ var _wordpress_element__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_wordpress_element__WEBPACK_IMPORTED_MODULE_0__);
 
+// Enqueue the stylesheet
+function enqueueStyle() {
+  const styleUrl = new URL('style.css', document.currentScript.src);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = styleUrl.href;
+  document.head.appendChild(link);
+}
+enqueueStyle();
 const {
   registerBlockType
 } = wp.blocks;
@@ -19,13 +28,14 @@ const {
   Fragment
 } = wp.element;
 const {
-  useState
+  useState,
+  useEffect
 } = wp.element;
 const {
   withSelect
 } = wp.data;
 registerBlockType('airtable-wp/dynamic-form-builder', {
-  title: 'Dynamic Form Builder',
+  title: 'Airtable WP',
   icon: 'editor-table',
   category: 'widgets',
   edit({
@@ -43,7 +53,12 @@ registerBlockType('airtable-wp/dynamic-form-builder', {
       // Send formData to Airtable using your preferred method (e.g., fetch API)
       console.log('Form data submitted:', formData);
     };
-    return (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)(Fragment, null, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("label", {
+    useEffect(() => {
+      createFormComponent();
+    }, []);
+    return (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("div", {
+      draggable: "false"
+    }, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)(Fragment, null, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("label", {
       htmlFor: "filter-by-type"
     }, "Filter by Type:"), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("select", {
       id: "filter-by-type"
@@ -71,25 +86,13 @@ registerBlockType('airtable-wp/dynamic-form-builder', {
       id: "field-container"
     }), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("div", {
       id: "form-builder-container"
-    }, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("form", {
-      onSubmit: handleSubmit
-    }, fields.map(field => (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)(Fragment, {
-      key: field.name
-    }, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("label", {
-      htmlFor: field.name
-    }, field.name), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("input", {
-      type: "text",
-      id: field.name,
-      name: field.name,
-      value: formData[field.name] || '',
-      onChange: handleChange
-    }))), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("button", {
-      type: "submit"
-    }, "Submit"))), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("div", {
+    }, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("div", {
+      id: "form-container"
+    })), (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("div", {
       id: "form-code-container"
     }, (0,_wordpress_element__WEBPACK_IMPORTED_MODULE_0__.createElement)("textarea", {
       id: "form-code"
-    })));
+    }))));
   },
   save() {
     // Save function not needed for this example
@@ -98,7 +101,7 @@ registerBlockType('airtable-wp/dynamic-form-builder', {
 });
 
 // Retrieve Airtable fields using withSelect HOC
-wp.data.withSelect(select => {
+withSelect(select => {
   const {
     getEntityRecords
   } = select('core');
@@ -106,6 +109,14 @@ wp.data.withSelect(select => {
     fields: getEntityRecords('postType', 'airtable-field') // Adjust postType and taxonomy as needed
   };
 });
+function createFormComponent() {
+  const container = document.getElementById('form-code-container');
+  if (container) {
+    // Logic to append elements to the container
+  } else {
+    console.error('Container element not found');
+  }
+}
 
 /***/ }),
 
@@ -120,14 +131,20 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (/* binding */ createFormComponent)
 /* harmony export */ });
 function createFormComponent(field, fieldContainer, encounteredFields) {
-  const component = document.createElement('div');
-  component.classList.add('form-component');
-  component.draggable = true;
-  component.setAttribute('data-field-name', field.name); // Add field name as data attribute
-  component.setAttribute('data-field-type', field.type); // Add field type as data attribute
-  component.innerText = field.name;
-  fieldContainer.appendChild(component);
-  encounteredFields.add(field.name); // Add field to encountered set
+  const div = document.createElement('div');
+  div.className = 'form-component';
+  div.setAttribute('data-field-type', field.type);
+  div.setAttribute('data-field-name', field.name);
+  div.innerText = field.name;
+  div.draggable = true;
+
+  // Ensure fieldContainer is valid before appending
+  if (fieldContainer) {
+    fieldContainer.appendChild(div);
+    encounteredFields.add(field.name);
+  } else {
+    console.error('Field container is null');
+  }
 }
 
 /***/ }),
@@ -142,12 +159,119 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ dragAndDrop)
 /* harmony export */ });
-function dragAndDrop(formContainer, baseId, apiKey, tableName, formCode) {
+function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, formCode) {
   formContainer.addEventListener('dragover', function (event) {
     event.preventDefault();
   });
   formContainer.addEventListener('drop', function (event) {
-    // Drag and drop functionality implementation here...
+    event.preventDefault();
+    const fieldName = event.dataTransfer.getData('text/plain');
+    const fieldType = event.dataTransfer.getData('application/field-type');
+    console.log('fieldName:', fieldName); // Log fieldName
+    console.log('fieldType:', fieldType); // Log fieldType
+
+    // Create input element based on field type
+    let inputElement;
+    switch (fieldType) {
+      case 'email':
+        inputElement = document.createElement('input');
+        inputElement.type = 'email';
+        break;
+      case 'date':
+        inputElement = document.createElement('input');
+        inputElement.type = 'date';
+        break;
+      case 'textarea':
+      case 'multilineText':
+        inputElement = document.createElement('textarea');
+        break;
+      case 'checkbox':
+        inputElement = document.createElement('input');
+        inputElement.type = 'checkbox';
+        inputElement.classList.add("form-check-input");
+
+        // Create label for checkbox
+        const labelElement = document.createElement('label');
+        labelElement.innerText = fieldName; // Set label text to field name
+        labelElement.setAttribute('for', fieldName); // Set 'for' attribute to match input ID
+
+        labelElement.classList.add("form-check-label");
+        // Append checkbox and label to a container div
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.classList.add("form-check");
+        checkboxContainer.appendChild(inputElement);
+        checkboxContainer.appendChild(labelElement);
+        inputElement = checkboxContainer; // Set inputElement to the container div
+        break;
+      case 'select':
+      case 'singleSelect':
+        inputElement = document.createElement('select');
+        inputElement.classList.add('form-select');
+        // Retrieve options from Airtable schema
+        fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        }).then(response => response.json()).then(data => {
+          const table = data.tables.find(table => table.name === tableName);
+          if (!table) {
+            console.error('Table not found:', tableName);
+            return;
+          }
+          const field = table.fields.find(field => field.name === fieldName);
+          if (!field || !field.options || !field.options.choices) {
+            console.error('Field or options not found for:', fieldName);
+            return;
+          }
+          const choices = field.options.choices;
+          choices.forEach(choice => {
+            const optionElement = document.createElement('option');
+            optionElement.value = choice.id || choice.name;
+            optionElement.text = choice.name;
+            inputElement.appendChild(optionElement);
+          });
+        }).catch(error => console.error('Error fetching Airtable schema:', error));
+        break;
+      case 'image':
+        inputElement = document.createElement('div');
+        inputElement.innerText = 'Image Upload Field';
+        inputElement.classList.add('image-upload-field');
+        break;
+      case 'file':
+      case 'multipleAttachments':
+        const multipleAttachmentsContainer = document.createElement('div');
+        multipleAttachmentsContainer.classList.add("mb-3");
+        inputElement = document.createElement('input');
+        inputElement.type = 'file';
+
+        // Create label for checkbox
+        const multipleAttachmentslabelElement = document.createElement('label');
+        multipleAttachmentslabelElement.innerText = fieldName; // Set label text to field name
+        multipleAttachmentslabelElement.setAttribute('for', fieldName); // Set 'for' attribute to match input ID
+
+        multipleAttachmentslabelElement.classList.add("form-label");
+        // Append checkbox and label to a container div
+
+        multipleAttachmentsContainer.appendChild(multipleAttachmentslabelElement);
+        multipleAttachmentsContainer.appendChild(inputElement);
+        inputElement = multipleAttachmentsContainer; // Set inputElement to the container div
+        break;
+      default:
+        inputElement = document.createElement('input');
+        inputElement.type = 'text';
+    }
+    inputElement.classList.add('form-control');
+    inputElement.setAttribute('name', fieldName); // Set input element name to match field name
+    inputElement.placeholder = fieldName;
+    formContainer.appendChild(inputElement);
+    let formContentCode = formContainer.innerHTML;
+    formCode.value = formContentCode;
+  });
+  fieldContainer.addEventListener('dragstart', function (event) {
+    const fieldName = event.target.getAttribute('data-field-name');
+    const fieldType = event.target.getAttribute('data-field-type');
+    event.dataTransfer.setData("text/plain", fieldName);
+    event.dataTransfer.setData("application/field-type", fieldType); // Set field type as application/field-type data
   });
 }
 
@@ -200,11 +324,13 @@ __webpack_require__.r(__webpack_exports__);
 
 
 
-document.addEventListener('DOMContentLoaded', function () {
+function initializeForm() {
   const fieldContainer = document.getElementById('field-container');
   const formContainer = document.getElementById('form-container');
   const formCode = document.getElementById('form-code');
-  const airtableWpSettings = airtableWpSettingsObject || {}; // Update object name here
+
+  //if (fieldContainer && formContainer && formCode) {
+  const airtableWpSettings = window.airtableWpSettingsObject || {}; // Update object name here
   const apiKey = airtableWpSettings.apiKey || '';
   const baseId = airtableWpSettings.baseId || '';
   const tableName = airtableWpSettings.tableName || '';
@@ -212,55 +338,58 @@ document.addEventListener('DOMContentLoaded', function () {
 
   (0,_form_builder_fetchAirtableSchema_js__WEBPACK_IMPORTED_MODULE_0__["default"])(apiKey, baseId, tableName).then(fields => {
     fields.forEach(field => (0,_form_builder_createFormComponent_js__WEBPACK_IMPORTED_MODULE_1__["default"])(field, fieldContainer, encounteredFields));
-    (0,_form_builder_dragAndDrop_js__WEBPACK_IMPORTED_MODULE_2__["default"])(formContainer, baseId, apiKey, tableName, formCode);
+    (0,_form_builder_dragAndDrop_js__WEBPACK_IMPORTED_MODULE_2__["default"])(formContainer, fieldContainer, baseId, apiKey, tableName, formCode);
+    addEventListeners(fieldContainer); // Pass fieldContainer to addEventListeners
+  }).catch(error => {
+    console.error('Error fetching Airtable schema:', error);
   });
-
+}
+function addEventListeners(fieldContainer) {
   // Filter fields by field type
   const filterByType = document.getElementById('filter-by-type');
-  filterByType.addEventListener('change', function () {
-    const selectedType = filterByType.value;
-    const formComponents = fieldContainer.getElementsByClassName('form-component');
-    for (let i = 0; i < formComponents.length; i++) {
-      const fieldType = formComponents[i].getAttribute('data-field-type');
-      if (selectedType === 'all' || fieldType === selectedType) {
-        formComponents[i].style.display = '';
-      } else {
-        formComponents[i].style.display = 'none';
+  if (filterByType) {
+    filterByType.addEventListener('change', function () {
+      const selectedType = filterByType.value;
+      const formComponents = fieldContainer.getElementsByClassName('form-component');
+      for (let i = 0; i < formComponents.length; i++) {
+        const fieldType = formComponents[i].getAttribute('data-field-type');
+        if (selectedType === 'all' || fieldType === selectedType) {
+          formComponents[i].style.display = '';
+        } else {
+          formComponents[i].style.display = 'none';
+        }
       }
-    }
-  });
+    });
+  }
 
   // Search for fields
   const searchField = document.getElementById('search-field');
-  searchField.addEventListener('input', function () {
-    const searchTerm = searchField.value.toLowerCase();
-    const formComponents = fieldContainer.getElementsByClassName('form-component');
-    for (let i = 0; i < formComponents.length; i++) {
-      const fieldName = formComponents[i].getAttribute('data-field-name').toLowerCase();
-      if (fieldName.includes(searchTerm)) {
-        formComponents[i].style.display = '';
-      } else {
-        formComponents[i].style.display = 'none';
+  if (searchField) {
+    searchField.addEventListener('input', function () {
+      const searchTerm = searchField.value.toLowerCase();
+      const formComponents = fieldContainer.getElementsByClassName('form-component');
+      for (let i = 0; i < formComponents.length; i++) {
+        const fieldName = formComponents[i].getAttribute('data-field-name').toLowerCase();
+        if (fieldName.includes(searchTerm)) {
+          formComponents[i].style.display = '';
+        } else {
+          formComponents[i].style.display = 'none';
+        }
       }
-    }
-  });
-  const formBuilderTab = document.getElementById('form-builder-tab');
-  const codeViewTab = document.getElementById('code-view-tab');
-  const formBuilderContainer = document.getElementById('form-builder-container');
-  const formCodeContainer = document.getElementById('form-code-container');
-  formBuilderTab.addEventListener('click', () => {
-    formBuilderContainer.style.display = 'block';
-    formCodeContainer.style.display = 'none';
-    formBuilderTab.classList.add('active');
-    codeViewTab.classList.remove('active');
-  });
-  codeViewTab.addEventListener('click', () => {
-    formBuilderContainer.style.display = 'none';
-    formCodeContainer.style.display = 'block';
-    codeViewTab.classList.add('active');
-    formBuilderTab.classList.remove('active');
-  });
-});
+    });
+  }
+}
+function checkAirtableBlock() {
+  const airtableBlock = document.querySelector('[data-type="airtable-wp/dynamic-form-builder"]');
+  if (airtableBlock) {
+    initializeForm(); // Initialize the form functionality
+  } else {
+    setTimeout(checkAirtableBlock, 500); // Check again after 500ms if not found
+  }
+}
+
+// Start checking for the Airtable block
+checkAirtableBlock();
 
 /***/ }),
 

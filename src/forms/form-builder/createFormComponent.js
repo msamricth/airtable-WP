@@ -1,10 +1,16 @@
 export default function createFormComponent(field, fieldContainer, encounteredFields) {
-    const component = document.createElement('div');
-    component.classList.add('form-component');
-    component.draggable = true;
-    component.setAttribute('data-field-name', field.name); // Add field name as data attribute
-    component.setAttribute('data-field-type', field.type); // Add field type as data attribute
-    component.innerText = field.name;
-    fieldContainer.appendChild(component);
-    encounteredFields.add(field.name); // Add field to encountered set
+    const div = document.createElement('div');
+    div.className = 'form-component';
+    div.setAttribute('data-field-type', field.type);
+    div.setAttribute('data-field-name', field.name);
+    div.innerText = field.name;
+    div.draggable = true;
+    
+    // Ensure fieldContainer is valid before appending
+    if (fieldContainer) {
+        fieldContainer.appendChild(div); 
+        encounteredFields.add(field.name);
+    } else {
+        console.error('Field container is null');
+    }
 }
