@@ -64,9 +64,21 @@ registerBlockType('airtable-wp/dynamic-form-builder', {
 
                     {/* Form builder container */}
                     <div id="form-builder-container">
-                        <div id="form-container">
-                           
-                        </div>
+                        <form id="form-container" onSubmit={handleSubmit}>
+                            {fields && fields.map && fields.map((field) => (
+                                <Fragment key={field.name}>
+                                    <label htmlFor={field.name}>{field.name}</label>
+                                    <input
+                                        type="text"
+                                        id={field.name}
+                                        name={field.name}
+                                        value={formData[field.name] || ''}
+                                        onChange={handleChange}
+                                    />
+                                </Fragment>
+                            ))}
+                            <button type="submit">Submit</button>
+                        </form>
                     </div>
 
                     {/* Code view container */}
