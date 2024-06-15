@@ -7,108 +7,139 @@ function enqueueStyle() {
     document.head.appendChild(link);
 }
 
-enqueueStyle();
+//enqueueStyle();
 
 const { registerBlockType } = wp.blocks;
 const { Fragment } = wp.element;
 const { useState, useEffect } = wp.element;
-const { withSelect } = wp.data;
+const { InspectorControls } = wp.blockEditor;
+const { PanelBody, SelectControl } = wp.components;
 
 registerBlockType('airtable-wp/dynamic-form-builder', {
     title: 'Airtable WP',
     icon: 'editor-table',
     category: 'widgets',
-    edit({ fields }) {
-        const [formData, setFormData] = useState({});
-
-        const handleChange = (event) => {
-            setFormData({
-                ...formData,
-                [event.target.name]: event.target.value,
-            });
-        };
-
-        const handleSubmit = (event) => {
-            event.preventDefault();
-            // Send formData to Airtable using your preferred method (e.g., fetch API)
-            console.log('Form data submitted:', formData);
-        };
+    attributes: {
+        selectedForm: {
+            type: 'string',
+            default: ''
+        }
+    },
+    edit({ attributes, setAttributes }) {
+        const [forms, setForms] = useState([]);
 
         useEffect(() => {
-            createFormComponent();
+            const storedForms = JSON.parse(localStorage.getItem('airtableForms')) || [];
+            setForms(storedForms);
         }, []);
 
+        const formOptions = forms.map((form, index) => ({
+            label: form.name,
+            value: form.name
+        }));
+
         return (
-            <div draggable="false">
-                <Fragment>
-                    {/* Filter by type */}
-                    <label htmlFor="filter-by-type">Filter by Type:</label>
-                    <select id="filter-by-type">
-                        <option value="all">All</option>
-                        <option value="singleLineText">Text</option>
-                        <option value="email">Email</option>
-                        <option value="date">Date</option>
-                        <option value="singleSelect">Select</option>
-                        <option value="Checkbox">Checkbox</option>
-                        <option value="multipleAttachments">File</option>
-                        {/* Add other field types as options */}
-                    </select>
+            <Fragment>
+                <InspectorControls>
+                    <PanelBody title="Select Form">
+                        <SelectControl
+                            label="Form"
+                            value={attributes.selectedForm}
+                            options={formOptions}
+                            onChange={(value) => setAttributes({ selectedForm: value })}
+                        />
+                    </PanelBody>
+                </InspectorControls>
+                <div draggable="false">
+                    <Fragment>
+                        {/* Filter by type */}
+                        <label htmlFor="filter-by-type">Filter by Type:</label>
+                        <select id="filter-by-type">
+                            <option value="all">All</option>
+                            <option value="singleLineText">Text</option>
+                            <option value="email">Email</option>
+                            <option value="date">Date</option>
+                            <option value="singleSelect">Select</option>
+                            <option value="Checkbox">Checkbox</option>
+                            <option value="multipleAttachments">File</option>
+                        </select>
 
-                    {/* Search field */}
-                    <label htmlFor="search-field">Search Fields:</label>
-                    <input type="text" id="search-field" placeholder="Search..." />
+                        {/* Search field */}
+                        <label htmlFor="search-field">Search Fields:</label>
+                        <input type="text" id="search-field" placeholder="Search..." />
 
-                    <div id="field-container">
-                        {/* Render fields dynamically based on the fields prop */}
-                    </div>
+                        <div id="field-container">
+                            {/* Render fields dynamically based on the fields prop */}
+                        </div>
 
-                    {/* Form builder container */}
-                    <div id="form-builder-container">
-                        <form id="form-container" onSubmit={handleSubmit}>
-                            {fields && fields.map && fields.map((field) => (
-                                <Fragment key={field.name}>
-                                    <label htmlFor={field.name}>{field.name}</label>
-                                    <input
-                                        type="text"
-                                        id={field.name}
-                                        name={field.name}
-                                        value={formData[field.name] || ''}
-                                        onChange={handleChange}
-                                    />
-                                </Fragment>
-                            ))}
-                            <button type="submit">Submit</button>
-                        </form>
-                    </div>
+                        {/* Form builder container */}
+                        <div id="form-builder-container">
+                            <form id="form-container">
+                                {/* Form fields will be dynamically rendered here */}
+                            </form>
+                        </div>
 
-                    {/* Code view container */}
-                    <div id="form-code-container">
-                        <textarea id="form-code"></textarea>
-                    </div>
-                </Fragment>
-            </div>
+                        {/* Code view container */}
+                        <div id="form-code-container">
+                            <textarea id="form-code"></textarea>
+                        </div>
+                    </Fragment>
+                </div>
+            </Fragment>
         );
     },
-
     save() {
-        // Save function not needed for this example
-        return null;
-    },
-});
-
-// Retrieve Airtable fields using withSelect HOC
-withSelect((select) => {
-    const { getEntityRecords } = select('core');
-    return {
-        fields: getEntityRecords('postType', 'airtable-field'), // Adjust postType and taxonomy as needed
-    };
-});
-
-function createFormComponent() {
-    const container = document.getElementById('form-code-container');
-    if (container) {
-        // Logic to append elements to the container
-    } else {
-        console.error('Container element not found');
+        return null; // Save function not needed for this example
     }
+});
+
+function createFormComponent(field, fieldContainer, encounteredFields) {
+    if (encounteredFields.has(field.name)) {
+        return; // Skip if the field has already been encountered
+    }
+    encounteredFields.add(field.name);
+
+    const fieldElement = document.createElement('div');
+    fieldElement.classList.add('form-component');
+    fieldElement.setAttribute('data-field-name', field.name);
+    fieldElement.setAttribute('data-field-type', field.type);
+
+    const label = document.createElement('label');
+    label.textContent = field.name;
+    fieldElement.appendChild(label);
+
+    let inputElement;
+    switch (field.type) {
+        case 'singleLineText':
+        case 'email':
+        case 'date':
+            inputElement = document.createElement('input');
+            inputElement.type = field.type === 'singleLineText' ? 'text' : field.type;
+            break;
+        case 'singleSelect':
+            inputElement = document.createElement('select');
+            // Add options for the select field (assuming field.options is an array of option values)
+            field.options.forEach(option => {
+                const optionElement = document.createElement('option');
+                optionElement.value = option;
+                optionElement.textContent = option;
+                inputElement.appendChild(optionElement);
+            });
+            break;
+        case 'checkbox':
+            inputElement = document.createElement('input');
+            inputElement.type = 'checkbox';
+            break;
+        case 'multipleAttachments':
+            inputElement = document.createElement('input');
+            inputElement.type = 'file';
+            break;
+        default:
+            inputElement = document.createElement('input');
+            inputElement.type = 'text';
+    }
+    inputElement.name = field.name;
+    fieldElement.appendChild(inputElement);
+
+    fieldContainer.appendChild(fieldElement);
 }
