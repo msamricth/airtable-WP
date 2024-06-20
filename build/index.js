@@ -202,6 +202,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */ __webpack_require__.d(__webpack_exports__, {
 /* harmony export */   "default": () => (/* binding */ dragAndDrop)
 /* harmony export */ });
+/* harmony import */ var _fieldUI__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./fieldUI */ "./src/forms/form-builder/fieldUI.js");
+
 function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, formCode) {
   formContainer.addEventListener('dragover', function (event) {
     event.preventDefault();
@@ -210,8 +212,19 @@ function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, f
     event.preventDefault();
     const fieldName = event.dataTransfer.getData('text/plain');
     const fieldType = event.dataTransfer.getData('application/field-type');
+    const fieldID = 'airtable-field-' + slugify(fieldName);
     console.log('fieldName:', fieldName); // Log fieldName
     console.log('fieldType:', fieldType); // Log fieldType
+
+    function slugify(str) {
+      return String(str).normalize('NFKD') // split accented characters into their base characters and diacritical marks
+      .replace(/[\u0300-\u036f]/g, '') // remove all the accents, which happen to be all in the \u03xx UNICODE block.
+      .trim() // trim leading or trailing whitespace
+      .toLowerCase() // convert to lowercase
+      .replace(/[^a-z0-9 -]/g, '') // remove non-alphanumeric characters
+      .replace(/\s+/g, '-') // replace spaces with hyphens
+      .replace(/-+/g, '-'); // remove consecutive hyphens
+    }
 
     // Create input element based on field type
     let inputElement;
@@ -275,6 +288,54 @@ function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, f
           });
         }).catch(error => console.error('Error fetching Airtable schema:', error));
         break;
+      case 'multipleSelects':
+        const multipleSelectsContainer = document.createElement('div');
+        multipleSelectsContainer.classList.add('mb-3');
+        const multipleSelectsLabel = document.createElement('label');
+        multipleSelectsLabel.innerText = fieldName;
+        multipleSelectsLabel.setAttribute('for', fieldID);
+        const multipleSelectsDescription = document.createElement('small');
+        multipleSelectsDescription.classList.add('form-text', 'text-muted');
+        fetch(`https://api.airtable.com/v0/meta/bases/${baseId}/tables`, {
+          headers: {
+            'Authorization': `Bearer ${apiKey}`
+          }
+        }).then(response => response.json()).then(data => {
+          const table = data.tables.find(table => table.name === tableName);
+          if (!table) {
+            console.error('Table not found:', tableName);
+            return;
+          }
+          const field = table.fields.find(field => field.name === fieldName);
+          if (!field || !field.options || !field.options.choices) {
+            console.error('Field or options not found for:', fieldName);
+            return;
+          }
+          if (field.description) {
+            multipleSelectsDescription.innerText = field.description;
+            multipleSelectsContainer.appendChild(multipleSelectsDescription);
+          }
+          const choices = field.options.choices;
+          choices.forEach(choice => {
+            const choiceContainer = document.createElement('div');
+            choiceContainer.classList.add('form-check');
+            const checkboxElement = document.createElement('input');
+            checkboxElement.type = 'checkbox';
+            checkboxElement.id = slugify(choice.name);
+            checkboxElement.name = fieldName;
+            checkboxElement.value = choice.id || choice.name;
+            checkboxElement.classList.add('form-check-input');
+            const checkboxLabel = document.createElement('label');
+            checkboxLabel.setAttribute('for', slugify(choice.name));
+            checkboxLabel.innerText = choice.name;
+            checkboxLabel.classList.add('form-check-label');
+            choiceContainer.appendChild(checkboxElement);
+            choiceContainer.appendChild(checkboxLabel);
+            multipleSelectsContainer.appendChild(choiceContainer);
+          });
+        }).catch(error => console.error('Error fetching Airtable schema:', error));
+        inputElement = multipleSelectsContainer;
+        break;
       case 'image':
         inputElement = document.createElement('div');
         inputElement.innerText = 'Image Upload Field';
@@ -286,7 +347,7 @@ function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, f
         multipleAttachmentsContainer.classList.add("mb-3");
         inputElement = document.createElement('input');
         inputElement.type = 'file';
-
+        inputElement.setAttribute('name', fieldName);
         // Create label for checkbox
         const multipleAttachmentslabelElement = document.createElement('label');
         multipleAttachmentslabelElement.innerText = fieldName; // Set label text to field name
@@ -303,10 +364,17 @@ function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, f
         inputElement = document.createElement('input');
         inputElement.type = 'text';
     }
+    inputElement.id = fieldID;
+    const fieldContainer = document.createElement('div');
     inputElement.classList.add('form-control');
+    inputElement.classList.add('mb-2');
     inputElement.setAttribute('name', fieldName); // Set input element name to match field name
     inputElement.placeholder = fieldName;
-    formContainer.appendChild(inputElement);
+    fieldContainer.classList.add('airtable-field');
+    fieldContainer.id = 'airtable-field-container-' + fieldID;
+    fieldContainer.appendChild(inputElement);
+    formContainer.appendChild(fieldContainer);
+    (0,_fieldUI__WEBPACK_IMPORTED_MODULE_0__["default"])(formContainer, fieldID, inputElement);
     let formContentCode = formContainer.innerHTML;
     formCode.value = formContentCode;
   });
@@ -315,6 +383,57 @@ function dragAndDrop(formContainer, fieldContainer, baseId, apiKey, tableName, f
     const fieldType = event.target.getAttribute('data-field-type');
     event.dataTransfer.setData("text/plain", fieldName);
     event.dataTransfer.setData("application/field-type", fieldType); // Set field type as application/field-type data
+  });
+}
+
+/***/ }),
+
+/***/ "./src/forms/form-builder/eventlisteners.js":
+/*!**************************************************!*\
+  !*** ./src/forms/form-builder/eventlisteners.js ***!
+  \**************************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ fieldUIListeners)
+/* harmony export */ });
+function fieldUIListeners() {
+  const formContainer = document.getElementById('form-container');
+  const placeholderbtns = formContainer.querySelectorAll('.field-ui--placeholder');
+  const removeBTNs = formContainer.querySelectorAll('.field-ui--remove');
+  placeholderbtns.forEach(function (placeholder) {
+    let fieldID = placeholder.id;
+    if (fieldID) {
+      fieldID = fieldID.replace("placeholder-", "");
+      let atField = document.getElementById(fieldID);
+      placeholder.addEventListener('click', function (event) {
+        event.preventDefault();
+        const newPlaceholder = prompt('Enter new placeholder:');
+        if (newPlaceholder) {
+          atField.placeholder = newPlaceholder;
+        }
+      });
+    }
+  });
+  removeBTNs.forEach(function (removeBTN) {
+    let fieldID = removeBTN.id;
+    if (fieldID) {
+      fieldID = fieldID.replace("remove-field-", "");
+      let atField = document.getElementById('airtable-field-container-' + fieldID),
+        parentThing = 'fieldUI-' + fieldID,
+        fieldUI = document.getElementById(parentThing);
+      removeBTN.addEventListener('click', function (event) {
+        event.preventDefault();
+        console.log('cliked');
+        if (fieldUI) {
+          formContainer.removeChild(fieldUI);
+        }
+        if (atField) {
+          formContainer.removeChild(atField);
+        }
+      });
+    }
   });
 }
 
@@ -354,6 +473,67 @@ function fetchAirtableSchema(apiKey, baseId, tableName) {
 
 /***/ }),
 
+/***/ "./src/forms/form-builder/fieldUI.js":
+/*!*******************************************!*\
+  !*** ./src/forms/form-builder/fieldUI.js ***!
+  \*******************************************/
+/***/ ((__unused_webpack_module, __webpack_exports__, __webpack_require__) => {
+
+__webpack_require__.r(__webpack_exports__);
+/* harmony export */ __webpack_require__.d(__webpack_exports__, {
+/* harmony export */   "default": () => (/* binding */ initFieldUI)
+/* harmony export */ });
+function initFieldUI(formContainer, fieldID, inputElement) {
+  // Create a UI around the dropped element
+  const fieldUI = document.createElement('div');
+  fieldUI.classList.add('field-ui');
+  fieldUI.id = 'fieldUI-' + fieldID;
+
+  // Change placeholder
+  const changePlaceholderButton = document.createElement('button');
+  changePlaceholderButton.id = 'placeholder-' + fieldID;
+  changePlaceholderButton.classList.add('field-ui--placeholder');
+  changePlaceholderButton.innerText = 'Change Placeholder';
+  changePlaceholderButton.name = inputElement.id;
+  changePlaceholderButton.addEventListener('click', function (event) {
+    event.preventDefault();
+    const newPlaceholder = prompt('Enter new placeholder:');
+    if (newPlaceholder) {
+      inputElement.placeholder = newPlaceholder;
+    }
+  });
+  fieldUI.appendChild(changePlaceholderButton);
+
+  // Sort field
+  const sortFieldButton = document.createElement('button');
+  sortFieldButton.innerText = 'Sort Field';
+  sortFieldButton.addEventListener('click', function () {
+    const direction = prompt('Enter direction (asc/desc):');
+    if (direction && (direction === 'asc' || direction === 'desc')) {
+      // Implement sorting logic
+      // For example, you can use the 'direction' value to sort the fields in the formContainer
+    }
+  });
+  fieldUI.appendChild(sortFieldButton);
+
+  // Remove field
+  const removeFieldButton = document.createElement('a');
+  removeFieldButton.innerText = 'Remove Field';
+  removeFieldButton.id = 'remove-field-' + fieldID;
+  removeFieldButton.href = "#";
+  removeFieldButton.classList.add('field-ui--remove');
+  removeFieldButton.name = inputElement.id;
+  removeFieldButton.addEventListener('click', function (event) {
+    event.preventDefault();
+    formContainer.removeChild(inputElement);
+    formContainer.removeChild(fieldUI);
+  });
+  fieldUI.appendChild(removeFieldButton);
+  formContainer.appendChild(fieldUI);
+}
+
+/***/ }),
+
 /***/ "./src/forms/forms.js":
 /*!****************************!*\
   !*** ./src/forms/forms.js ***!
@@ -364,6 +544,8 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony import */ var _form_builder_fetchAirtableSchema_js__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(/*! ./form-builder/fetchAirtableSchema.js */ "./src/forms/form-builder/fetchAirtableSchema.js");
 /* harmony import */ var _form_builder_createFormComponent_js__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(/*! ./form-builder/createFormComponent.js */ "./src/forms/form-builder/createFormComponent.js");
 /* harmony import */ var _form_builder_dragAndDrop_js__WEBPACK_IMPORTED_MODULE_2__ = __webpack_require__(/*! ./form-builder/dragAndDrop.js */ "./src/forms/form-builder/dragAndDrop.js");
+/* harmony import */ var _form_builder_eventlisteners_js__WEBPACK_IMPORTED_MODULE_3__ = __webpack_require__(/*! ./form-builder/eventlisteners.js */ "./src/forms/form-builder/eventlisteners.js");
+
 
 
 
@@ -377,6 +559,8 @@ function initializeForm() {
   const baseId = airtableWpSettings.baseId || '';
   const tableName = airtableWpSettings.tableName || '';
   const encounteredFields = new Set();
+  formContainer.innerHTML = formCode.value;
+  (0,_form_builder_eventlisteners_js__WEBPACK_IMPORTED_MODULE_3__["default"])();
   (0,_form_builder_fetchAirtableSchema_js__WEBPACK_IMPORTED_MODULE_0__["default"])(apiKey, baseId, tableName).then(fields => {
     fields.forEach(field => (0,_form_builder_createFormComponent_js__WEBPACK_IMPORTED_MODULE_1__["default"])(field, fieldContainer, encounteredFields));
     (0,_form_builder_dragAndDrop_js__WEBPACK_IMPORTED_MODULE_2__["default"])(formContainer, fieldContainer, baseId, apiKey, tableName, formCode);
@@ -408,39 +592,47 @@ function addEventListeners(fieldContainer) {
       }
     });
   }
-  const saveFormButton = document.getElementById('save-form-button');
-  if (saveFormButton) {
-    saveFormButton.addEventListener('click', function () {
-      const formConfig = document.getElementById('form-code').value;
-      const formTitle = document.getElementById('form-title').value;
-      saveFormConfig(formTitle, formConfig);
-    });
-  }
-}
-function saveFormConfig(formTitle, formConfig) {
-  fetch(airtableWpSettingsObject.ajaxUrl, {
-    method: 'POST',
-    credentials: 'same-origin',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: new URLSearchParams({
-      action: 'save_airtable_form',
-      formTitle: formTitle,
-      formConfig: formConfig
-    })
-  }).then(response => response.json()).then(data => {
-    if (data.success) {
-      alert('Form saved successfully');
-    } else {
-      alert('Error saving form: ' + data.data);
-    }
-  }).catch(error => {
-    console.error('Error saving form:', error);
-    alert('Error saving form');
-  });
 }
 document.addEventListener('DOMContentLoaded', initializeForm);
+document.addEventListener('DOMContentLoaded', function () {
+  const formContainer = document.getElementById('form-container');
+  const formHtmlField = document.getElementById('_airtable_form_html');
+  const editorWindow = document.querySelector('#content.wp-editor-area');
+
+  // Function to update the hidden field
+  function updateFormHtmlField() {
+    const airtableFields = formContainer.querySelectorAll('.airtable-field');
+    let airtableFormFields;
+    airtableFields.forEach(function (airtableField) {
+      if (airtableFormFields) {
+        airtableFormFields = airtableFormFields + airtableField.innerHTML;
+      } else {
+        airtableFormFields = airtableField.innerHTML;
+      }
+    });
+    let airtableForm = '<form class="airtable-form">';
+    if (airtableFormFields) {
+      airtableForm = airtableForm + airtableFormFields;
+    }
+    let submitButton = '<button type="submit" class="airtable-form-submit btn btn-primary">Submit</button>',
+      honeypot = '<input size="40" maxlength="80" class="wpcf7-form-control d-none" id="honeypot" aria-invalid="false" value="" type="text" name="Name" style="display:none">';
+    airtableForm = airtableForm + honeypot + submitButton + '</form>';
+    formHtmlField.value = formContainer.innerHTML;
+    if (editorWindow) {
+      editorWindow.value = airtableForm;
+    }
+  }
+
+  // Observe changes in the form container
+  const observer = new MutationObserver(updateFormHtmlField);
+  observer.observe(formContainer, {
+    childList: true,
+    subtree: true
+  });
+
+  // Update the hidden field initially
+  updateFormHtmlField();
+});
 
 /***/ }),
 

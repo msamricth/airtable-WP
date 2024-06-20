@@ -14,10 +14,10 @@
 		"packages-update": "wp-scripts packages-update"
 	},
 	"dependencies": {
-    "airtable": "^0.12.2",
 		"@wordpress/block-editor": "^8.0.9",
 		"@wordpress/blocks": "^11.1.4",
-		"@wordpress/i18n": "^4.2.4"
+		"@wordpress/i18n": "^4.2.4",
+		"airtable": "^0.12.2"
 	},
 	"devDependencies": {
 		"@wordpress/scripts": "^19.2.2"

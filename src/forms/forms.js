@@ -1,7 +1,7 @@
 import fetchAirtableSchema from './form-builder/fetchAirtableSchema.js';
 import createFormComponent from './form-builder/createFormComponent.js';
 import dragAndDrop from './form-builder/dragAndDrop.js';
-
+import fieldUIListeners from './form-builder/eventlisteners.js'
 function initializeForm() {
     const fieldContainer = document.getElementById('field-container');
     const formContainer = document.getElementById('form-container');
@@ -14,6 +14,8 @@ function initializeForm() {
     const tableName = airtableWpSettings.tableName || '';
     const encounteredFields = new Set();
 
+    formContainer.innerHTML = formCode.value;
+    fieldUIListeners();
     fetchAirtableSchema(apiKey, baseId, tableName)
         .then(fields => {
             fields.forEach(field => createFormComponent(field, fieldContainer, encounteredFields));
@@ -50,41 +52,48 @@ function addEventListeners(fieldContainer) {
         });
     }
 
-    const saveFormButton = document.getElementById('save-form-button');
-    if (saveFormButton) {
-        saveFormButton.addEventListener('click', function () {
-            const formConfig = document.getElementById('form-code').value;
-            const formTitle = document.getElementById('form-title').value;
-            saveFormConfig(formTitle, formConfig);
-        });
-    }
-}
-
-function saveFormConfig(formTitle, formConfig) {
-    fetch(airtableWpSettingsObject.ajaxUrl, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-            action: 'save_airtable_form',
-            formTitle: formTitle,
-            formConfig: formConfig,
-        }),
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('Form saved successfully');
-        } else {
-            alert('Error saving form: ' + data.data);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving form:', error);
-        alert('Error saving form');
-    });
 }
 
 document.addEventListener('DOMContentLoaded', initializeForm);
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const formContainer = document.getElementById('form-container');
+    const formHtmlField = document.getElementById('_airtable_form_html');
+    const editorWindow = document.querySelector('#content.wp-editor-area');
+
+    // Function to update the hidden field
+    function updateFormHtmlField() {
+
+        const airtableFields = formContainer.querySelectorAll('.airtable-field');
+        let airtableFormFields;
+
+        airtableFields.forEach(function(airtableField){
+            if(airtableFormFields){
+                airtableFormFields = airtableFormFields + airtableField.innerHTML;
+            } else {
+                airtableFormFields = airtableField.innerHTML;
+            }
+        })
+        
+        let airtableForm = '<form class="airtable-form">';
+        if(airtableFormFields){
+            airtableForm =  airtableForm + airtableFormFields;
+        }
+        let submitButton = '<button type="submit" class="airtable-form-submit btn btn-primary">Submit</button>',
+        honeypot = '<input size="40" maxlength="80" class="wpcf7-form-control d-none" id="honeypot" aria-invalid="false" value="" type="text" name="Name" style="display:none">'
+        airtableForm =  airtableForm  +honeypot +submitButton+ '</form>';
+
+        formHtmlField.value = formContainer.innerHTML;
+        if(editorWindow){
+            editorWindow.value = airtableForm;
+        }
+    }
+
+    // Observe changes in the form container
+    const observer = new MutationObserver(updateFormHtmlField);
+    observer.observe(formContainer, { childList: true, subtree: true });
+
+    // Update the hidden field initially
+    updateFormHtmlField();
+});

@@ -1,6 +1,4 @@
 <?php
-
-
 function airtable_wp_add_admin_menu()
 {
     add_menu_page(
@@ -15,7 +13,6 @@ function airtable_wp_add_admin_menu()
 }
 add_action('admin_menu', 'airtable_wp_add_admin_menu');
 
-// Register settings
 function airtable_wp_settings_init()
 {
     register_setting('airtable_wp', 'airtable_wp_settings');
@@ -50,6 +47,14 @@ function airtable_wp_settings_init()
         'airtable_wp',
         'airtable_wp_section'
     );
+
+    add_settings_field(
+        'airtable_wp_email_field_name',
+        __('Primary Email Field Name', 'airtable-wp'),
+        'airtable_wp_email_field_name_render',
+        'airtable_wp',
+        'airtable_wp_section'
+    );
 }
 add_action('admin_init', 'airtable_wp_settings_init');
 
@@ -77,6 +82,14 @@ function airtable_wp_table_name_render()
     <?php
 }
 
+function airtable_wp_email_field_name_render()
+{
+    $options = get_option('airtable_wp_settings');
+    ?>
+    <input type='text' name='airtable_wp_settings[email_field_name]' value='<?php echo $options['email_field_name']; ?>'>
+    <?php
+}
+
 function airtable_wp_settings_section_callback()
 {
     echo __('Enter your Airtable API details below:', 'airtable-wp');
@@ -85,45 +98,14 @@ function airtable_wp_settings_section_callback()
 function airtable_wp_settings_page()
 {
     ?>
-    <div class="wrap">
-        <h1><?php _e('Airtable WP Settings', 'airtable-wp'); ?></h1>
-        <form action='options.php' method='post'>
-            <?php
-            settings_fields('airtable_wp');
-            do_settings_sections('airtable_wp');
-            submit_button();
-            ?>
-        </form>
-        <h2><?php _e('Create Form', 'airtable-wp'); ?></h2>
-        <div id="form-builder-settings">
-            <label for="filter-by-type"><?php _e('Filter by Type:', 'airtable-wp'); ?></label>
-            <select id="filter-by-type">
-                <option value="all"><?php _e('All', 'airtable-wp'); ?></option>
-                <option value="singleLineText"><?php _e('Text', 'airtable-wp'); ?></option>
-                <option value="email"><?php _e('Email', 'airtable-wp'); ?></option>
-                <option value="date"><?php _e('Date', 'airtable-wp'); ?></option>
-                <option value="singleSelect"><?php _e('Select', 'airtable-wp'); ?></option>
-                <option value="Checkbox"><?php _e('Checkbox', 'airtable-wp'); ?></option>
-                <option value="multipleAttachments"><?php _e('File', 'airtable-wp'); ?></option>
-            </select>
 
-            <label for="search-field"><?php _e('Search Fields:', 'airtable-wp'); ?></label>
-            <input type="text" id="search-field" placeholder="<?php _e('Search...', 'airtable-wp'); ?>" />
 
-            <div id="field-container">
-                <!-- Fields will be dynamically populated here -->
-            </div>
 
-            <div id="form-builder-container">
-                <form id="form-container">
-                    <!-- Form fields will be dynamically rendered here -->
-                </form>
-            </div>
-
-            <div id="form-code-container">
-                <textarea id="form-code"></textarea>
-            </div>
-        </div>
-    </div>
-    <?php
+    <form action='options.php' method='post'>
+        <?php
+        settings_fields('airtable_wp');
+        do_settings_sections('airtable_wp');
+        submit_button();
 }
+
+// Handle AJAX request to save the form configuration

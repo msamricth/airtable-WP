@@ -1,4 +1,5 @@
 <?php
+
 function airtable_wp_register_form_post_type() {
     $labels = array(
         'name'                  => _x('Forms', 'Post Type General Name', 'airtable-wp'),
