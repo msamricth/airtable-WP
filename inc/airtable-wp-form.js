@@ -1,69 +1,44 @@
+document.addEventListener('DOMContentLoaded', function() {
+    const script = document.createElement('script');
+    script.src = 'https://widget.cloudinary.com/v2.0/global/all.js';
+    document.head.appendChild(script);
+});
 
 const formContainer = document.querySelector('.airtable-WP--form-container');
 const form = document.querySelector('.airtable-form');
-function ogSubmit() {
-    document.addEventListener('DOMContentLoaded', function () {
-        const form = document.querySelector('form.airtable-form');
-        form.addEventListener('submit', function (event) {
-            event.preventDefault(); // Prevent the default form submission
 
-            const formData = new FormData(form);
-            const dataFields = {};
+function uploadToCloudinary(file) {
+    return new Promise((resolve, reject) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'preset'); // Replace with your actual upload preset
+        formData.append('cloud_name', 'dp1qyhhlo'); // Replace with your actual cloud name
 
-            formData.forEach((value, key) => {
-                dataFields[key] = value;
-            });
-
-            const data = {
-                fields: dataFields
-            };
-
-            const airtableWp = window.airtableWpSettingsObject || {};
-            const airtableApiKey = airtableWp.apiKey;
-            const airtableBaseId = airtableWp.baseId;
-            const airtableTableName = airtableWp.tableName;
-
-            // Debugging information
-            console.log('Airtable API Key:', airtableApiKey);
-            console.log('Airtable Base ID:', airtableBaseId);
-            console.log('Airtable Table Name:', airtableTableName);
-            console.log('Form Data:', data);
-
-            fetch(`https://api.airtable.com/v0/${airtableBaseId}/${airtableTableName}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${airtableApiKey}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(data)
-            })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => { throw err; });
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Success:', data);
-                    alert('Form submitted successfully!');
-                })
-                .catch((error) => {
-                    console.error('Error:', error);
-                    alert('An error occurred while submitting the form.');
-                });
+        console.log('Uploading to Cloudinary with formData:', formData);
+        fetch('https://api.cloudinary.com/v1_1/dp1qyhhlo/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Cloudinary response:', data);
+            if (data.secure_url) {
+                const secureUrl = data.secure_url.replace(/\\/g, '');
+                resolve({ url: secureUrl, filename: file.name });
+            } else {
+                reject('Upload failed');
+            }
+        })
+        .catch(error => {
+            reject(error);
         });
     });
 }
 
-
-
 function populateFormFromAirtable() {
-    // Get the query string from the URL
     if (form) {
         const queryString = window.location.search;
         const urlParams = new URLSearchParams(queryString);
-
-
 
         const airtableWp = window.airtableWpSettingsObject || {};
         const airtableApiKey = airtableWp.apiKey;
@@ -72,67 +47,35 @@ function populateFormFromAirtable() {
 
         if (urlParams.has('recID')) {
             const recID = urlParams.get('recID');
-            //  ?recID="recfPJzVbCmRwOXN3"
 
-            // Check if the 'email' parameter exists in the query string
-
-
-
-            // Make AJAX request to fetch the Airtable record based on the email
             fetch(`https://api.airtable.com/v0/${airtableBaseId}/${airtableTableName}/${recID}`, {
                 headers: {
                     'Authorization': `Bearer ${airtableApiKey}`
                 }
             })
-                .then(response => response.json())
-                .then(data => {
-                    // Check if record exists
-                    if (data && data.fields) {
-                        // Iterate over each field in the form
-                        document.querySelectorAll('input').forEach(input => {
-                            // Check if the field name matches a field in the Airtable record
-                            if (data.fields[input.name]) {
-                                // Fill out the form field with the value from the Airtable record
-                                input.value = data.fields[input.name];
-                            }
-                        });
-                    } else {
-                        console.log('No record found for rec id:', recID);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching Airtable record:', error);
-                });
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.fields) {
+                    document.querySelectorAll('input').forEach(input => {
+                        if (data.fields[input.name]) {
+                            input.value = data.fields[input.name];
+                        }
+                    });
+                } else {
+                    console.log('No record found for rec id:', recID);
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching Airtable record:', error);
+            });
         }
     }
 }
 
-// Call the function when the page loads
 document.addEventListener('DOMContentLoaded', populateFormFromAirtable);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 const contactFormBlocks = document.querySelectorAll('.airtable-WP');
 let contactFormID, contactFormBtn, contactFormError, contactFormSuccess, contactFormInstance, contactFormSending, contactFormContainer, contactFormHoneyPot, contactFormEmail, contactFormEditURL;
-
-
 
 function formsInit() {
     contactFormBlocks.forEach(function (contactFormBlock) {
@@ -141,9 +84,8 @@ function formsInit() {
         contactFormID = contactFormBlock.id;
         contactFormBtn.disabled = true;
 
-
         contactFormContainer = contactFormBlock.querySelector('.hidden-only-if-sent');
-        contactFormSuccess = contactFormBlock.querySelector('.visible-only-if-sent');//visible-only-if-sent
+        contactFormSuccess = contactFormBlock.querySelector('.visible-only-if-sent');
         contactFormError = contactFormBlock.querySelector('.visible-only-if-error');
         contactFormSending = contactFormBlock.querySelector('.visible-only-if-sending');
         contactFormHoneyPot = contactFormBlock.querySelector('.honeypot');
@@ -151,10 +93,8 @@ function formsInit() {
         contactFormInstance = contactFormContainer.querySelector('.airtable-form');
         console.log(contactFormInstance)
 
-
         checkHoneyPot(contactFormHoneyPot, contactFormBtn);
         emailValidation(contactFormEmail, contactFormBtn, contactFormHoneyPot);
-
 
         let contactFormStatusSuccess, contactFormStatusInvalid, contactFormStatusSending;
 
@@ -185,32 +125,31 @@ function formsInit() {
                 contactFormError.classList.add = 'animate';
                 observer.disconnect();
             }
-
         });
 
         if (contactFormInstance) {
-            contactFormInstance.addEventListener('submit', function (event) {
+            contactFormInstance.addEventListener('submit', async function (event) {
                 contactFormInstance.classList.add('submitting');
                 event.preventDefault(); // Prevent the default form submission
 
-                const formData = new FormData(form);
+                const formData = new FormData(contactFormInstance);
                 const formObject = {};
-                formData.forEach((value, key) => {
-                    if (value.trim() !== '') { // Only add the field if it's not empty
+                console.log(formData);
+                for (const [key, value] of formData.entries()) {
+                    if (value instanceof File && value.size > 0) {
+                        try {
+                            const fileData = await uploadToCloudinary(value);
+                            formObject[key] = [fileData]; // Array with the file data object
+                        } catch (error) {
+                            console.error('File upload error:', error);
+                            contactFormInstance.classList.remove('submitting');
+                            return;
+                        }
+                    } else if (typeof value === 'string' && value.trim() !== '') {
                         formObject[key] = value;
                     }
-                });
-                const fileInputs = contactFormInstance.querySelectorAll('.awp-file');
-                fileInputs.forEach(function (fileInput) {
+                }
 
-                    // Check if a file was selected
-                    if (fileInput.files.length > 0) {
-                        // Append the file to the formData
-                        let label = fileInput.querySelector('label').textContent;
-                        console.log(label)
-                        formObject[label] = fileInput.files[0];
-                    }
-                })
                 fetch(airtable_wp_ajax_url, {
                     method: 'POST',
                     headers: {
@@ -221,40 +160,41 @@ function formsInit() {
                         form_data: JSON.stringify(formObject),
                     }),
                 })
-                    .then(response => response.json())
-
-                    .then(data => {
-                        if (data.success) {
-                            let record_id = data.data.record_id;
-                            if (record_id) {
-                                const editLink = document.createElement('a');
-                                editLink.href = window.location.href + '?recID=' + record_id;
-                                editLink.innerText = 'Edit your information';
-                                contactFormEditURL.appendChild(editLink);
-
-                            }
-                            form.classList.remove('submitting');
-
-                            form.classList.add('sent');
-                            console.log('Form submitted successfully:', data);
-
-                        } else {
-
-                            console.error('Error submitting form:', data.message, data);
+                .then(response => response.text())
+                .then(responseText => {
+                    console.log('Response text:', responseText);
+                    let data;
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (error) {
+                        console.error('Error parsing JSON:', error);
+                        throw new Error('Invalid JSON response');
+                    }
+                    if (data.success) {
+                        let record_id = data.data.record_id;
+                        if (record_id) {
+                            const editLink = document.createElement('a');
+                            editLink.href = window.location.href + '?recID=' + record_id;
+                            editLink.innerText = 'Edit your information';
+                            contactFormEditURL.appendChild(editLink);
                         }
-                    })
-                    .catch(error => {
-                        console.error('Error submitting form:', error);
-                    });
+                        contactFormInstance.classList.remove('submitting');
+                        contactFormInstance.classList.add('sent');
+                        console.log('Form submitted successfully:', data);
+                    } else {
+                        console.error('Error submitting form:', data.message, data);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting form:', error);
+                });
             });
         }
     });
 
-
     expandTextAreaPattern();
-
-
 }
+
 function onClassChange(node, callback) {
     let lastClassString = node.classList.toString();
 
@@ -276,9 +216,7 @@ function onClassChange(node, callback) {
     return mutationObserver;
 }
 
-
 function emailValidation(contactFormEmail, contactFormBtn, contactFormHoneyPot) {
-
     if (contactFormEmail) {
         contactFormBtn.disabled = true;
         contactFormEmail.addEventListener('input', function (evt) {
@@ -289,7 +227,6 @@ function emailValidation(contactFormEmail, contactFormBtn, contactFormHoneyPot) 
     }
 }
 
-
 function checkHoneyPot(honeyPot, contactFormBtn, $class = null) {
     if (honeyPot && honeyPot.value) {
         contactFormBtn.disabled = true;
@@ -299,7 +236,6 @@ function checkHoneyPot(honeyPot, contactFormBtn, $class = null) {
 }
 
 function expandTextAreaPattern() {
-
     function calcHeight(value) {
         var numberOfLineBreaks = (value.match(/\n/g) || []).length;
         var heightVar = 30;

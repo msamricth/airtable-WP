@@ -35,10 +35,10 @@ class Utilities
             $email = implode(', ', $email); // Convert array to string if needed
             error_log($email);
         }
-
+    
         // Form Airtable API URL
         $api_url = "https://api.airtable.com/v0/{$base_id}/{$table_name}?filterByFormula=" . urlencode("{" . $email_field . "}='{$email}'");
-
+    
         // Make API request to check if email exists
         $response = wp_remote_get(
             $api_url,
@@ -46,25 +46,29 @@ class Utilities
                 'headers' => array(
                     'Authorization' => 'Bearer ' . $api_key,
                 ),
+                'timeout' => 15, // Increase timeout to 15 seconds
             )
         );
-
-
+    
         if (is_wp_error($response)) {
             // Log or handle the error
             error_log('Error checking email in Airtable: ' . $response->get_error_message());
             return false;
         }
-
+    
         $body = wp_remote_retrieve_body($response);
         $data = json_decode($body, true);
-
+    
+        // Log the raw response body for debugging
+        error_log('Airtable response body: ' . print_r($body, true));
+    
         // Check if records exist in the response
         if (!empty($data['records'])) {
             error_log('email_exists_in_airtable');
         }
         return !empty($data['records']);
     }
+    
 
     // Function to add email to Airtable
 
@@ -123,7 +127,7 @@ class Utilities
         $logData = $data;
         if (is_array($logData)) {
             //return false;
-            $logData = implode(', ', $logData); // Convert array to string if needed
+            $logData = json_encode($logData, JSON_PRETTY_PRINT); // Convert array (including sub-arrays) to JSON string
         }
 
         error_log($email . ', data->' . $logData);

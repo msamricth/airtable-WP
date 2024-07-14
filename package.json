@@ -17,7 +17,8 @@
 		"@wordpress/block-editor": "^8.0.9",
 		"@wordpress/blocks": "^11.1.4",
 		"@wordpress/i18n": "^4.2.4",
-		"airtable": "^0.12.2"
+		"airtable": "^0.12.2",
+		"cloudinary": "^2.2.0"
 	},
 	"devDependencies": {
 		"@wordpress/scripts": "^19.2.2"
